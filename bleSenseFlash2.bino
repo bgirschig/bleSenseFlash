@@ -1,0 +1,148 @@
+// MODIFIED
+
+#include <Arduino.h>
+#include <stdbool.h>
+
+// nFR52 NVMC registers
+#define NVMC_BASE       (0x4001E000U)
+#define NVMC_READY      (NVMC_BASE + 0x400U)
+#define NVMC_READYNEXT  (NVMC_BASE + 0x408U)
+#define NVMC_CONFIG     (NVMC_BASE + 0x504U)
+#define NVMC_ERASEPAGE  (NVMC_BASE + 0x508U)
+#define NVMC_ERASEALL   (NVMC_BASE + 0x50CU)
+#define NVMC_ERASEUICR  (NVMC_BASE + 0x514U)
+#define NVMC_ERASEPAGEPARTIAL   (NVMC_BASE + 0X518U)
+#define NVMC_ERASEPAGEPARTIALCFG  (NVMC_BASE + 0X51CU)
+#define NVMC_ICACHECNF  (NVMC_BASE + 0x540U)
+#define NVMC_IHIT       (NVMC_BASE + 0x548U)
+#define NVMC_IMISS      (NMVC_BASE + 0x54cU)
+
+// nFR52 MVMC values
+#define MVMC_READ_MODE 0x00
+#define MVMC_WRITE_MODE 0x01
+#define MVMC_ERASE_MODE 0x02
+
+// From this experiment we learn that the variables must be const.  And when const the linker will
+// automatically put them in flash.  This way we do not need to worry about the specific layout
+// in memory as the linker will handle that automatically for us.
+
+const int flash __attribute__ ((section("FLASH"), aligned (0x1000))) = 100;
+const uint32_t flash2 __attribute__ ((section("FLASH"), aligned (0x1000))) = 0x09090909;
+
+typedef struct flash_mem {
+    char ssid[64];
+    char pwd[64];
+    char devname[64];
+} flash_mem_t;
+
+const flash_mem_t myFlash __attribute__ ((section("FLASH"), aligned (0x1000))) = {
+  "test", "secret", "fred"
+}; 
+
+// These are available for the linker and help us understand how memory is getting layed out.
+extern "C" unsigned long __heap_start;
+extern "C" unsigned long __heap_size;
+extern "C" unsigned long __bss_start__;
+extern "C" unsigned long __bss_end__;
+extern "C" unsigned long FLASH;     // While available this always ends up being zero, showing us that
+                                    // we can't get the link address location this way from the linker.
+
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(115200);
+  while (!Serial) { }
+  delay(2500);
+  pinMode(LED_BUILTIN, OUTPUT);
+  
+  Serial.println("Starting...");
+  Serial.print("__heap_start: "); Serial.println(__heap_start, HEX);
+  Serial.print("__heap_size: "); Serial.println(__heap_size, HEX);
+  Serial.print("&flash: "); Serial.println((unsigned long)(&flash), HEX);
+  Serial.print("&myFlash: "); Serial.println((unsigned long)(&myFlash), HEX);
+  Serial.print("__bss_start__: "); Serial.println(__bss_start__, HEX);
+  Serial.print("__bss_end__: "); Serial.println(__bss_end__, HEX);
+  Serial.print("FLASH: "); Serial.println(FLASH, HEX);
+  Serial.flush();
+
+  Serial.print("NVMC READY: "); Serial.println(*(uint32_t *)(NVMC_READY), HEX);
+  Serial.print("NVMC READY NEXT: "); Serial.println(*(uint32_t *)(NVMC_READYNEXT), HEX);
+  
+  fakeHexDumpMemory((uint8_t *)(&flash2), 64);
+  hexDumpMemory((uint8_t *)(&myFlash), 256);
+
+  Serial.print("Config = "); Serial.println(*(int32_t *)(NVMC_CONFIG), HEX);
+
+  if (*(uint32_t *)NVMC_READY == true) {
+    Serial.println("Flashing...");
+    // Write into myFlash
+     *(uint32_t *)NVMC_CONFIG = MVMC_WRITE_MODE;
+    *(uint32_t *)(&myFlash) = 0x00;
+    while(*(uint32_t *)NVMC_READY == false)
+      delayMicroseconds(50);
+    *(uint32_t *)NVMC_CONFIG = MVMC_READ_MODE;
+    Serial.println("...Flashed");
+  } else {
+    Serial.println("... Flash Not Ready! ...");
+  }
+  
+  hexDumpMemory((uint8_t *)(&myFlash), 256);
+
+  if(*(uint32_t *)NVMC_READY == true) {
+    Serial.println("Erasing...");
+    *(uint32_t *)NVMC_CONFIG = MVMC_ERASE_MODE;
+    *(uint32_t *)NVMC_ERASEPAGE = (uint32_t)(&myFlash);
+    while(*(uint32_t *)NVMC_READY == false)
+      delay(85);
+    *(uint32_t *)NVMC_CONFIG = MVMC_READ_MODE;
+    Serial.println("...Erased");
+  } else {
+    Serial.println("... Flash Not Ready to Erase! ...");
+  }
+
+  hexDumpMemory((uint8_t *)(&myFlash), 256);
+  fakeHexDumpMemory((uint8_t *)(&flash2), 64);
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  digitalWrite(LED_BUILTIN, HIGH);
+  delay(250);
+  digitalWrite(LED_BUILTIN, LOW);
+  delay(750);
+}
+
+void fakeHexDumpMemory(uint8_t *memStart, const unsigned int nbrOfBytes) {
+  Serial.print(".");
+  Serial.print("\n");
+}
+
+void hexDumpMemory(uint8_t *memStart, const unsigned int nbrOfBytes) {
+  /* hex dump memory to the serial interface starting at memStart for nbrOfBytes */
+
+  uint8_t *ptr;
+  int bytesPerLine = 15;
+  int bytesOnLine = 0;
+  
+  ptr = memStart;
+
+  Serial.print("Memory dump of: "); Serial.println((unsigned long)(memStart), HEX);
+  
+  for (unsigned int i = 0; i < nbrOfBytes; i++) {
+    if (bytesOnLine == 0) {
+      Serial.print((unsigned long)(ptr+i), HEX);
+      Serial.print(": ");
+    }
+    
+    if (*(ptr+i) < 0x10)  // print a leading 0
+      Serial.print("0");
+    Serial.print(*(ptr+i), HEX); Serial.print(" ");
+    
+    if (bytesOnLine == bytesPerLine) {
+      Serial.println(" ");
+      bytesOnLine = 0;
+    } else {
+      bytesOnLine += 1;
+    }
+  }
+  Serial.println("");
+}
