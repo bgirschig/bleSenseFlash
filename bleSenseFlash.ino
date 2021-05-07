@@ -3,11 +3,13 @@
 #include <Arduino.h>
 #include <stdbool.h>
 #include "flashStorage.h"
+#include "Blinker.h"
+
+Blinker statusBlinker(400, 1000, LED_BUILTIN);
 
 void setup() {
   // Initialize serial
   Serial.begin(115200);
-  while (!Serial.ready()) { }
   delay(500);
 
   // Load and show saved values
@@ -23,8 +25,11 @@ void setup() {
   flashStorage::values.val_1 += 1;
   flashStorage::values.val_2 += 0.642;
   flashStorage::save();
+
+  statusBlinker.set_flash_count(flashStorage::values.counter);
 }
 
 // Arduino expects this
 void loop() {
+  statusBlinker.update();
 }
