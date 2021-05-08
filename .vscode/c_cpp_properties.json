@@ -31,6 +31,9 @@
             "includePath": [
                 "/Users/bastienGirschig/Library/Arduino15/packages/arduino/hardware/mbed/1.3.2/cores/arduino",
                 "/Users/bastienGirschig/Library/Arduino15/packages/arduino/hardware/mbed/1.3.2/variants/ARDUINO_NANO33BLE",
+                "/Users/bastienGirschig/Documents/Arduino/libraries/ArduinoBLE/src",
+                "/Users/bastienGirschig/Documents/Arduino/libraries/Arduino_LSM9DS1/src",
+                "/Users/bastienGirschig/Library/Arduino15/packages/arduino/hardware/mbed/1.3.2/libraries/Wire",
                 "/Users/bastienGirschig/Library/Arduino15/packages/arduino/hardware/mbed/1.3.2/cores/arduino/api/deprecated",
                 "/Users/bastienGirschig/Library/Arduino15/packages/arduino/tools/arm-none-eabi-gcc/7-2017q4/arm-none-eabi/include/c++/7.2.1",
                 "/Users/bastienGirschig/Library/Arduino15/packages/arduino/tools/arm-none-eabi-gcc/7-2017q4/arm-none-eabi/include/c++/7.2.1/arm-none-eabi",

@@ -4,32 +4,39 @@
 #include <stdbool.h>
 #include "flashStorage.h"
 #include "Blinker.h"
+#include "bleClient.h"
+#include <Arduino_LSM9DS1.h>
+
 
 Blinker statusBlinker(400, 1000, LED_BUILTIN);
+BleClient bleClient {};
 
 void setup() {
   // Initialize serial
   Serial.begin(115200);
-  delay(500);
 
-  // Load and show saved values
+  // Load values from flash storage
   flashStorage::load();
-  if (Serial.ready()) {
-    Serial.println(flashStorage::values.val_1);
-    Serial.println(flashStorage::values.val_2);
-    Serial.println(flashStorage::values.counter);
-  }
 
-  // Update and save values
+  // Update and save counter
   flashStorage::values.counter += 1;
-  flashStorage::values.val_1 += 1;
-  flashStorage::values.val_2 += 0.642;
   flashStorage::save();
+
+  IMU.begin();
+
+  bleClient.init();
+  bleClient.updateCounter(flashStorage::values.counter);
 
   statusBlinker.set_flash_count(flashStorage::values.counter);
 }
 
-// Arduino expects this
 void loop() {
   statusBlinker.update();
+  bleClient.update();
+
+  if (IMU.accelerationAvailable()) {
+    float x, y, z;
+    IMU.readAcceleration(x, y, z);
+    bleClient.updateAccel(x,y,z);
+  }
 }
