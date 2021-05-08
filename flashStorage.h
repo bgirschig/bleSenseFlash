@@ -25,7 +25,7 @@ namespace flashStorage {
   #define MVMC_ERASE_MODE 0x02
 
   typedef struct flash_mem {
-    int counter = 1;
+    int counter = 0;
     float val_1;
     float val_2;
     // We want to fill a whole page of memory.
